@@ -1,0 +1,16 @@
+# Original photos and crops used to make the character cutouts.
+# They stay on the dev machine and never go in the repo.
+assets/characters/source/
+
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+.venv/

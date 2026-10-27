@@ -41,9 +41,11 @@ random so players can't just click to a rhythm.
 - Bryan sits on a stool on the left, turned a little toward the table, so his
   lap is in plain view beside the table rather than hidden under it.
 - Jane sits on a stool on the right side of the table.
-- Characters use the cartoon art in `assets/characters/cartoon/`. That art
-  stops at the waist, so legs, stools, the table and the background are
-  drawn separately (simple flat cartoon shapes to match the art style).
+- Bryan and Jane are cartoon heads (from `assets/characters/cartoon/`) on
+  generic cartoon bodies, sitting on stools. The bodies are simple flat
+  shapes drawn to match the heads, with shirt colors taken from the photos
+  (Bryan in blue, Jane in black). The stools, table and background are drawn
+  in the same style.
 - The napkin is its own image layered on Bryan's lap, so it can pop in and
   out.
 
@@ -138,8 +140,7 @@ These are the defaults I picked. Each is easy to change.
 5. **Names.** Free text up to 12 characters, or arcade-style 3 letters?
 6. **Speed-up.** The game gets faster over the round. Or should it stay the
    same speed, or offer difficulty levels?
-7. **Art.** The current cartoon art is head and upper body. Should Jane and
-   Bryan get full cartoon bodies, or are drawn legs and stools under the
-   existing art fine?
+7. **Bodies.** Generic cartoon bodies under the real heads (decided). Should
+   the bodies move at all, like Bryan reaching for the napkin, or stay still?
 8. **Hosting.** Just run locally for now, or put it online later (for
    example GitHub Pages) so others can play?

@@ -19,6 +19,9 @@ point. Each round lasts 30 seconds. Scores go on a saved leaderboard.
    - Clicking when the napkin isn't showing is a miss and costs 1 point.
      The score never goes below 0. A miss gets a quick red "-1" so the
      player knows why.
+   - Sometimes a decoy pops up on Bryan's lap instead of the napkin: a fork
+     or a phone. Clicking a decoy costs 1 point, like a miss. A decoy you
+     leave alone just disappears.
    - The score and the time left are always on screen.
 3. **Game over.** Shows the final score. If it makes the leaderboard, the
    player types a name and it's saved. Then "Play again" or "Back to start".
@@ -34,7 +37,8 @@ easy to tune:
 | Gap before the next napkin | 0.4 to 1.5 s, random | 0.2 to 0.8 s, random |
 
 The game gets faster in a straight line over the 30 seconds. The gap is
-random so players can't just click to a rhythm.
+random so players can't just click to a rhythm. About 1 in 5 pop-ups is a
+decoy instead of the napkin (also in the config block).
 
 ## The scene
 
@@ -100,7 +104,9 @@ The core loop works end to end, with placeholder art where needed.
 **Done when:** you can play a full 30 second round in the browser and the
 score is right.
 
-### Milestone 2: Scores and leaderboard
+### Milestone 2: Decoys, scores and leaderboard
+
+- Decoys (fork, phone) pop up on Bryan's lap. Clicking one costs a point.
 
 - Start screen with title, leaderboard and "Play".
 - 3-2-1 countdown before each round.
@@ -108,12 +114,14 @@ score is right.
 - Leaderboard saved in `localStorage`, shown on the start and game over
   screens, with "Clear scores".
 
-**Done when:** scores from several rounds show up in the right order and are
-still there after reloading the page.
+**Done when:** decoys show up and cost a point when clicked, and scores
+from several rounds show up in the right order and are still there after
+reloading the page.
 
 ### Milestone 3: Polish
 
-- Final scene art: background, table, stools and napkin in the cartoon style.
+- Final scene art: background, table, stools, napkin and decoys in the
+  cartoon style.
 - Napkin animations: slides or pops up onto the lap, and flies away when
   grabbed.
 - When you don't grab the napkin in time, Jane reaches over and snatches it
@@ -135,10 +143,10 @@ These are the defaults I picked. Each is easy to change.
    animation is built in milestone 3, the napkin just disappears.
 2. **Misses.** Decided: a wrong click costs 1 point, and the score never
    drops below 0.
-3. **One spot or several.** Classic whack-a-mole has several holes. Here
-   there's one spot, Bryan's lap. Later, the napkin could also show up on
-   Jane's lap or on the table, or a decoy (a fork, a phone) could appear that
-   costs a point if clicked.
+3. **Decoys.** Decided: the napkin only shows up on Bryan's lap, and
+   sometimes a decoy (a fork or a phone) pops up there instead. Clicking a
+   decoy costs a point. Ideas for later: more spots, like the table or
+   Jane's lap.
 4. **Leaderboard location.** Decided: saved in the browser (`localStorage`),
    so each device has its own list. A shared online board could come later.
 5. **Names.** Decided: free text up to 12 characters.

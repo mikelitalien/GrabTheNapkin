@@ -16,7 +16,9 @@ point. Each round lasts 30 seconds. Scores go on a saved leaderboard.
    - The napkin appears on Bryan's lap for a short time, then disappears.
    - Clicking (or tapping) the napkin while it's showing scores 1 point and
      hides it right away. Each appearance can only be scored once.
-   - Clicking anywhere else does nothing.
+   - Clicking when the napkin isn't showing is a miss and costs 1 point.
+     The score never goes below 0. A miss gets a quick red "-1" so the
+     player knows why.
    - The score and the time left are always on screen.
 3. **Game over.** Shows the final score. If it makes the leaderboard, the
    player types a name and it's saved. Then "Play again" or "Back to start".
@@ -90,7 +92,8 @@ The core loop works end to end, with placeholder art where needed.
 - `index.html` loads and shows the scene: background, hightop table, Bryan
   and Jane on stools.
 - The napkin appears and disappears on Bryan's lap with the timing above.
-- Clicking the napkin scores a point. Score and a 30 second timer are shown.
+- Clicking the napkin scores a point, and a miss costs one. Score and a 30
+  second timer are shown.
 - When time runs out, the round stops and the final score is shown with a
   "Play again" button.
 
@@ -128,8 +131,8 @@ These are the defaults I picked. Each is easy to change.
 1. **Napkin behavior.** It pops up on Bryan's lap and disappears on its own
    if you miss it. Should anything else happen when you miss, like Bryan
    wiping his mouth with it or Jane grabbing it first?
-2. **Misses.** Clicking when the napkin isn't there costs nothing. Should
-   wrong clicks cost a point, to stop players from just clicking nonstop?
+2. **Misses.** Decided: a wrong click costs 1 point, and the score never
+   drops below 0.
 3. **One spot or several.** Classic whack-a-mole has several holes. Here
    there's one spot, Bryan's lap. Later, the napkin could also show up on
    Jane's lap or on the table, or a decoy (a fork, a phone) could appear that

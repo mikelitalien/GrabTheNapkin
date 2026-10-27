@@ -126,7 +126,9 @@ reloading the page.
   grabbed.
 - When you don't grab the napkin in time, Jane reaches over and snatches it
   with a smug look.
-- Feedback: a "+1" pop when you score, and a small reaction from Bryan or Jane.
+- Feedback: a "+1" pop when you score.
+- A little life: Bryan and Jane breathe and sway slightly, and Bryan flinches
+  when you grab the napkin.
 - Sound effects (pop, grab, end buzzer) with a mute button.
 - Works well on a phone: touch, layout scaling, no page scrolling.
 - A "New high score!" moment on the game over screen.
@@ -152,7 +154,8 @@ These are the defaults I picked. Each is easy to change.
 5. **Names.** Decided: free text up to 12 characters.
 6. **Speed-up.** Decided: every round speeds up from easy to fast, with no
    difficulty levels, so there's one fair leaderboard.
-7. **Bodies.** Generic cartoon bodies under the real heads (decided). Should
-   the bodies move at all, like Bryan reaching for the napkin, or stay still?
+7. **Bodies.** Decided: generic cartoon bodies under the real heads, with a
+   little life. They breathe and sway slightly, Jane's arm reaches over for
+   her snatches, and Bryan flinches when you grab the napkin (milestone 3).
 8. **Hosting.** Just run locally for now, or put it online later (for
    example GitHub Pages) so others can play?

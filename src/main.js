@@ -1,8 +1,11 @@
-// Loads the scene, runs the screens and the round, draws everything and
-// handles clicks.
+// Loads the scene, runs the screens and the round, draws the score and
+// countdown, and handles clicks. The scene itself is drawn by scene.js.
 
-import { ANCHORS_URL, IMAGES, MISS_FLASH, COUNTDOWN, NAME_MAX } from "./config.js";
+import { ANCHORS_URL, IMAGES, COUNTDOWN, NAME_MAX, HIT_PADDING, TOUCH_HIT_PADDING } from "./config.js";
 import { Round } from "./round.js";
+import { Scene } from "./scene.js";
+import { Confetti } from "./confetti.js";
+import { sfx, unlock, isMuted, setMuted } from "./sound.js";
 import * as board from "./leaderboard.js";
 
 const $ = (id) => document.getElementById(id);
@@ -15,11 +18,15 @@ const playButton = $("play");
 const nameForm = $("name-form");
 const nameInput = $("name");
 
+const muteButton = $("mute");
+const confetti = new Confetti($("fx"));
+
 let anchors;
-let images;
+let scene;
 let round = null;
 let roundStart = 0; // when play begins; the countdown runs before it
-let misses = []; // { x, y, at } red "-1" pops, at = round time
+let finished = true; // the round is over and the game over screen is up
+let lastCount = 0; // the countdown number last shown, for its beep
 let lastPlace = -1; // where the latest saved score landed, for highlighting
 
 function loadImage(src) {
@@ -36,13 +43,12 @@ async function load() {
   const entries = await Promise.all(
     Object.entries(IMAGES).map(async ([name, src]) => [name, await loadImage(src)])
   );
-  images = Object.fromEntries(entries);
+  scene = new Scene(ctx, anchors, Object.fromEntries(entries));
   canvas.width = anchors.scene.w;
   canvas.height = anchors.scene.h;
 }
 
 const now = () => performance.now() / 1000;
-const roundTime = () => now() - roundStart; // negative during the countdown
 
 // --- screens -------------------------------------------------------------
 
@@ -81,6 +87,7 @@ function renderBoards() {
 
 function showStart() {
   lastPlace = -1;
+  confetti.stop();
   hideClearConfirm();
   renderBoards();
   show(startScreen);
@@ -92,12 +99,21 @@ function showGameOver() {
   const bits = [];
   if (round.misses) bits.push(`${round.misses} ${round.misses === 1 ? "miss" : "misses"}`);
   if (round.decoyClicks) bits.push(`${round.decoyClicks} ${round.decoyClicks === 1 ? "decoy" : "decoys"} grabbed`);
+  if (round.snatched) bits.push(`Jane snatched ${round.snatched}`);
   $("over-text").textContent = `You scored ${s} ${s === 1 ? "point" : "points"}` +
     (bits.length ? ` (${bits.join(", ")}).` : ".");
   $("over-text").dataset.score = s;
 
   lastPlace = -1;
-  const qualifies = board.placeFor(s) !== -1;
+  const scores = board.loadScores();
+  const qualifies = board.placeFor(s, scores) !== -1;
+  // Beat the best score on the board (or set the first one).
+  const best = qualifies && s > (scores.length ? scores[0].score : 0);
+  $("new-high").hidden = !best;
+  if (best) {
+    confetti.start(now());
+    setTimeout(sfx.fanfare, 700); // after the buzzer
+  }
   nameForm.hidden = !qualifies;
   $("over-buttons").hidden = qualifies;
   renderBoards();
@@ -149,50 +165,63 @@ $("clear-yes").addEventListener("click", () => {
 // --- the round -------------------------------------------------------------
 
 function startRound() {
+  unlock();
+  confetti.stop();
   round = new Round(anchors.napkin.spots, anchors.napkin, anchors.decoys);
   roundStart = now() + COUNTDOWN;
-  misses = [];
+  finished = false;
+  lastCount = 0;
+  scene.reset();
   show(null);
   window.game = round; // handy for poking at from the browser console
+}
+
+// Move the round on and turn what happened into animation and sound.
+function play(n) {
+  const t = n - roundStart;
+  if (t < 0) {
+    const count = Math.ceil(-t);
+    if (count !== lastCount) sfx.tick();
+    lastCount = count;
+    return;
+  }
+  if (lastCount) sfx.go();
+  lastCount = 0;
+  round.update(t);
+  for (const e of round.takeEvents()) {
+    if (e.type === "show") sfx.pop();
+    else if (e.type === "snatch") {
+      scene.snatched(e.rect, n);
+      sfx.snatch();
+    } else if (e.type === "vanish") scene.vanished(e.rect, n);
+  }
+  if (round.over) {
+    finished = true;
+    sfx.buzzer();
+    showGameOver();
+  }
+}
+
+// Runs all the time, so Bryan and Jane keep breathing behind the screens.
+function frame() {
+  const n = now();
+  if (round && !finished) play(n);
+  scene.draw(n, round, roundStart);
+  drawHud(n);
+  drawCountdown(n - roundStart);
+  confetti.draw(n);
   requestAnimationFrame(frame);
 }
 
-function frame() {
-  const t = roundTime();
-  if (t >= 0) round.update(t);
-  draw(t);
-  if (round.over) showGameOver();
-  else requestAnimationFrame(frame);
-}
-
 // --- drawing -------------------------------------------------------------
-
-// Placeholder bar: a wall, a wainscot rail and a floor. Final art is milestone 3.
-function drawBackground() {
-  const { w, h } = anchors.scene;
-  ctx.fillStyle = "#efe4d4";
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "#c9a77c";
-  ctx.fillRect(0, 300, w, 170);
-  ctx.fillStyle = "#8a5a33";
-  ctx.fillRect(0, 292, w, 10);
-  ctx.fillStyle = "#6b4a33";
-  ctx.fillRect(0, 470, w, h - 470);
-  ctx.fillStyle = "#5a3d29";
-  ctx.fillRect(0, 466, w, 6);
-}
-
-function drawLayer(name) {
-  const { x, y } = anchors.layers[name];
-  ctx.drawImage(images[name], x, y);
-}
 
 function outlinedText(text, x, y) {
   ctx.strokeText(text, x, y);
   ctx.fillText(text, x, y);
 }
 
-function drawHud(t) {
+function drawHud(n) {
+  const t = n - roundStart;
   ctx.save();
   ctx.font = "bold 30px system-ui, sans-serif";
   ctx.textBaseline = "top";
@@ -201,7 +230,13 @@ function drawHud(t) {
   ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
   ctx.fillStyle = "#22181e";
   ctx.textAlign = "left";
-  outlinedText(`Score: ${round ? round.score : 0}`, 24, 20);
+  // The score swells when a grabbed napkin lands on it.
+  const pulse = scene.scorePulse(n);
+  ctx.save();
+  ctx.translate(24, 36);
+  ctx.scale(pulse, pulse);
+  outlinedText(`Score: ${round ? round.score : 0}`, 0, -16);
+  ctx.restore();
   const left = round ? Math.ceil(round.timeLeft(Math.max(t, 0))) : 30;
   ctx.textAlign = "right";
   if (round && !round.over && left <= 5) ctx.fillStyle = "#c0392b";
@@ -211,7 +246,7 @@ function drawHud(t) {
 
 // Big 3, 2, 1 in the middle of the scene, each one shrinking as it goes.
 function drawCountdown(t) {
-  if (t >= 0) return;
+  if (t >= 0 || finished) return;
   const n = Math.ceil(-t);
   const k = n + t; // 1 down to 0 within each number
   ctx.save();
@@ -229,35 +264,6 @@ function drawCountdown(t) {
   ctx.restore();
 }
 
-function drawMisses(t) {
-  misses = misses.filter((m) => t - m.at < MISS_FLASH);
-  ctx.save();
-  ctx.font = "bold 34px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = "white";
-  for (const m of misses) {
-    const k = (t - m.at) / MISS_FLASH;
-    ctx.globalAlpha = 1 - k;
-    ctx.fillStyle = "#d62c1f";
-    outlinedText("-1", m.x, m.y - 30 * k);
-  }
-  ctx.restore();
-}
-
-function draw(t) {
-  drawBackground();
-  drawLayer("bryan");
-  drawLayer("table");
-  drawLayer("jane");
-  const r = round && round.popupRect();
-  if (r) ctx.drawImage(images[r.kind], r.x, r.y);
-  drawMisses(t);
-  drawHud(t);
-  drawCountdown(t);
-}
-
 // --- input ---------------------------------------------------------------
 
 // Browser pixels to scene pixels, since the canvas is scaled to fit.
@@ -272,12 +278,41 @@ function toScene(e) {
 canvas.addEventListener("pointerdown", (e) => {
   if (!round || round.over) return;
   e.preventDefault();
-  const t = roundTime();
+  unlock();
+  const n = now();
+  const t = n - roundStart;
   if (t < 0) return; // still counting down
   const { x, y } = toScene(e);
-  const result = round.click(x, y, t);
-  if (result === "miss" || result === "decoy") misses.push({ x, y, at: t });
+  const pad = e.pointerType === "touch" ? TOUCH_HIT_PADDING : HIT_PADDING;
+  const result = round.click(x, y, t, pad);
+  if (result === "grab") {
+    scene.grabbed(round.lastHit, n);
+    sfx.grab();
+  } else if (result === "decoy" || result === "miss") {
+    if (result === "decoy") scene.vanished(round.lastHit, n);
+    scene.missed(x, y, n);
+    sfx.miss();
+  }
 });
+
+function renderMute() {
+  const on = isMuted();
+  muteButton.classList.toggle("muted", on);
+  muteButton.setAttribute("aria-pressed", String(on));
+  muteButton.title = on ? "Sound off (M)" : "Sound on (M)";
+}
+
+function toggleMute() {
+  unlock();
+  setMuted(!isMuted());
+  renderMute();
+}
+
+muteButton.addEventListener("click", toggleMute);
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "m" || e.key === "M") && e.target !== nameInput && !e.repeat) toggleMute();
+});
+renderMute();
 
 playButton.addEventListener("click", startRound);
 $("again").addEventListener("click", startRound);
@@ -286,7 +321,7 @@ $("back").addEventListener("click", showStart);
 renderBoards();
 load().then(
   () => {
-    draw(0);
+    requestAnimationFrame(frame);
     playButton.disabled = false;
     playButton.focus();
   },

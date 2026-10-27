@@ -5,6 +5,9 @@ Reads assets/characters/cartoon/<name>.png (made by cartoonize.py) and writes:
 
   assets/characters/seated/<name>.png       full-size master, 900 px tall
   assets/characters/seated/<name>_game.png  450 px tall, for the 960x540 scene
+  assets/characters/seated/<name>_stool.png the stool, shins and shoes, which stay put
+  assets/characters/seated/<name>_upper.png head, body, lap and arms, which breathe and sway
+  assets/characters/seated/jane_reach.png   Jane's upper half without the arm she reaches with
   assets/characters/seated/table.png        hightop table, same scale as _game
   assets/characters/seated/napkin.png       napkin layer that moves between Bryan's legs
   assets/characters/seated/fork.png         decoy that pops up instead of the napkin
@@ -53,6 +56,16 @@ SCENE = {"bryan": (170, 90), "table": (370, 90), "jane": (470, 90)}
 # screen the leg is on. The napkin starts on the screen-left leg.
 LEGS = {"screen_left": (272, 662), "screen_right": (368, 662)}
 NAPKIN_START = "screen_left"
+# Each arm as shoulder x, elbow x and hand x on the grid. Shoulders are at
+# y=384, elbows at y=520 and hands rest on the thighs at y=614.
+ARMS = {"screen_left": (236, 214, 256), "screen_right": (404, 426, 384)}
+ARM_PX = 44                # arm thickness on the grid
+HAND_R = 26                # hand radius on the grid
+# The upper body breathes and sways around this point on the grid, the
+# middle of the seat, so the lap barely moves.
+PIVOT = (320, 650)
+# The arm Jane reaches across the table with.
+REACH_ARM = "screen_left"
 
 WOOD = (156, 98, 52)
 WOOD_DARK = (112, 68, 36)
@@ -150,8 +163,8 @@ def stool(f):
     f.ellipse(WOOD, (196, 630, 444, 680))             # seat
 
 
-def body(f, c, skin, head):
-    """Seated body facing forward, centred at x=320."""
+def legs(f, c, skin):
+    """Shins and shoes, resting on the stool's footrest."""
     shin = skin if c["shorts"] else c["pants"]
 
     # Shins hang from the knees to the footrest.
@@ -160,6 +173,9 @@ def body(f, c, skin, head):
     for x in (272, 368):
         f.ellipse(c["shoes"], (x - 44, 784, x + 44, 828))
 
+
+def upper(f, c, skin, head, arms=("screen_left", "screen_right")):
+    """Head, torso, lap and arms: the part of a seated figure that moves."""
     # Head goes behind the torso so the collar hides its cut-off bottom.
     f.image(head, ((W - head.width) // 2, HEAD_BOTTOM - head.height))
 
@@ -176,11 +192,19 @@ def body(f, c, skin, head):
     f.rrect(c["pants"], (322, 604, 414, 704), 34)
 
     # Arms down the sides, hands resting on the thighs.
-    for sx, ex, hx in ((236, 214, 256), (404, 426, 384)):
+    for side, (sx, ex, hx) in ARMS.items():
+        if side not in arms:
+            continue
         f.limb(skin, [(sx, 384), (ex, 520), (hx, 614)], 44)
         f.ellipse(skin, (hx - 26, 596, hx + 26, 644))
         if c["sleeves"] == "short":
             f.limb(c["shirt"], [(sx, 380), (sx + (ex - sx) // 2, 446)], 60)
+
+
+def body(f, c, skin, head):
+    """Seated body facing forward, centred at x=320."""
+    legs(f, c, skin)
+    upper(f, c, skin, head)
 
 
 def table():
@@ -250,17 +274,44 @@ def round_bottom(head):
     return head
 
 
-def make(name, c):
+def load_head(name):
     head = Image.open(HEAD_DIR / f"{name}.png").convert("RGBA")
     head = head.crop((0, 0, head.width, round(head.height * (1 - HEAD_TRIM))))
     head = head.resize((round(head.width * HEAD_HEIGHT / head.height), HEAD_HEIGHT),
                        Image.Resampling.LANCZOS)
-    head = round_bottom(head)
+    return round_bottom(head)
+
+
+def make(name, c):
+    """The whole seated figure, plus the parts the game animates separately."""
+    head = load_head(name)
+    skin = skin_tone(head)
 
     f = Figure()
     stool(f)
-    body(f, c, skin_tone(head), head)
-    return f.render()
+    body(f, c, skin, head)
+    parts = {"": f.render()}
+
+    f = Figure()
+    stool(f)
+    legs(f, c, skin)
+    parts["_stool"] = f.render()
+
+    f = Figure()
+    upper(f, c, skin, head)
+    parts["_upper"] = f.render()
+
+    if name == "jane":
+        f = Figure()
+        upper(f, c, skin, head, arms=[a for a in ARMS if a != REACH_ARM])
+        parts["_reach"] = f.render()
+    return parts, skin
+
+
+def scene_point(name, x, y):
+    """A point on a character's grid, in scene pixels."""
+    ox, oy = SCENE[name]
+    return {"x": ox + round(x * SCALE), "y": oy + round(y * SCALE)}
 
 
 def to_game(img):
@@ -275,12 +326,29 @@ def main():
 
     OUT_DIR.mkdir(exist_ok=True)
     layers = {}
+    rig = {}
     for name, c in CHARACTERS.items():
-        img = make(name, c)
+        parts, skin = make(name, c)
+        img = parts.pop("")
         img.save(OUT_DIR / f"{name}.png", optimize=True)
         layers[name] = to_game(img)
         layers[name].save(OUT_DIR / f"{name}_game.png", optimize=True)
         print("wrote", (OUT_DIR / f"{name}.png").relative_to(ROOT))
+        for suffix, part in parts.items():
+            to_game(part).save(OUT_DIR / f"{name}{suffix}.png", optimize=True)
+            print("wrote", (OUT_DIR / f"{name}{suffix}.png").relative_to(ROOT))
+        rig[name] = {"pivot": scene_point(name, *PIVOT), "skin": "#%02x%02x%02x" % skin[:3]}
+
+    # Jane's reaching arm is drawn by the game, from her shoulder, in the
+    # same style: an ink outline around a flat skin-coloured stroke.
+    sx, ex, hx = ARMS[REACH_ARM]
+    rig["jane"].update({
+        "shoulder": scene_point("jane", sx, 384),
+        "elbow": scene_point("jane", ex, 520),
+        "hand": scene_point("jane", hx, 614),
+        "arm": round(ARM_PX * SCALE), "handR": round(HAND_R * SCALE),
+        "line": LINE_PX * SCALE, "outline": OUTLINE_PX * SCALE,
+    })
 
     layers["table"] = to_game(table())
     layers["table"].save(OUT_DIR / "table.png", optimize=True)
@@ -306,6 +374,8 @@ def main():
         "napkin": {"w": nap.width, "h": nap.height, "start": NAPKIN_START, "spots": spots},
         # Decoys pop up on the same leg spots, centred where the napkin would be.
         "decoys": {k: {"w": d.width, "h": d.height} for k, d in decoys.items()},
+        # Points the game needs to animate the characters.
+        "rig": rig,
     }
     (OUT_DIR / "anchors.json").write_text(json.dumps(anchors, indent=2) + "\n")
 

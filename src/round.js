@@ -23,6 +23,17 @@ export class Round {
     this.popup = null; // { kind, spot, shownAt, hideAt } while showing
     this.nextShowAt = FIRST_GAP;
     this.over = false;
+    // What happened since the last takeEvents(), for animation and sound:
+    // { type: "show", kind, at } when something pops up, { type: "snatch",
+    // rect, at } when a napkin times out (Jane takes it), and { type:
+    // "vanish", rect, at } when a decoy times out.
+    this.events = [];
+  }
+
+  takeEvents() {
+    const events = this.events;
+    this.events = [];
+    return events;
   }
 
   // How far through the round we are, 0 to 1.
@@ -63,7 +74,13 @@ export class Round {
   update(t) {
     while (!this.over) {
       if (this.popup && t >= this.popup.hideAt) {
-        if (this.popup.kind === "napkin") this.snatched++;
+        const rect = this.popupRect();
+        if (rect.kind === "napkin") {
+          this.snatched++;
+          this.events.push({ type: "snatch", rect, at: this.popup.hideAt });
+        } else {
+          this.events.push({ type: "vanish", rect, at: this.popup.hideAt });
+        }
         this.hide(this.popup.hideAt);
       } else if (!this.popup && this.nextShowAt >= ROUND_SECONDS) {
         if (t < ROUND_SECONDS) return;
@@ -72,6 +89,7 @@ export class Round {
         const shownAt = this.nextShowAt;
         const hideAt = Math.min(shownAt + this.upTime(shownAt), ROUND_SECONDS);
         this.popup = { kind: this.pickKind(), spot: this.pickSpot(), shownAt, hideAt };
+        this.events.push({ type: "show", kind: this.popup.kind, at: shownAt });
       } else {
         return;
       }
@@ -102,13 +120,17 @@ export class Round {
     return r && r.kind === "napkin" ? r : null;
   }
 
-  // A click or tap at scene point (x, y). Returns "grab", "decoy", "miss" or null.
-  click(x, y, t) {
+  // A click or tap at scene point (x, y). Returns "grab", "decoy", "miss" or
+  // null, and leaves what was hit (if anything) in this.lastHit.
+  // pad: extra pixels around the target that still count, more for touch.
+  click(x, y, t, pad = HIT_PADDING) {
     this.update(t);
+    this.lastHit = null;
     if (this.over) return null;
     const r = this.popupRect();
-    const p = HIT_PADDING;
+    const p = pad;
     const hit = r && x >= r.x - p && x <= r.x + r.w + p && y >= r.y - p && y <= r.y + r.h + p;
+    if (hit) this.lastHit = r;
     if (hit && r.kind === "napkin") {
       this.score++;
       this.grabs++;

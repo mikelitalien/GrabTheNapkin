@@ -21,8 +21,8 @@ assets/
       bryan.png, jane.png                 640 x 900 masters
       bryan_game.png, jane_game.png       320 x 450, for the 960 x 540 scene
       table.png                           hightop table, same scale
-      napkin.png                          napkin layer for Bryan's lap
-      anchors.json                        where each layer goes in the scene
+      napkin.png                          napkin layer, moves between Bryan's legs
+      anchors.json                        where each layer and napkin spot is in the scene
       preview.png                         the whole scene, napkin on
     source/      original photos and crops (not committed, see .gitignore)
 tools/

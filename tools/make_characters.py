@@ -6,7 +6,7 @@ Reads assets/characters/cartoon/<name>.png (made by cartoonize.py) and writes:
   assets/characters/seated/<name>.png       full-size master, 900 px tall
   assets/characters/seated/<name>_game.png  450 px tall, for the 960x540 scene
   assets/characters/seated/table.png        hightop table, same scale as _game
-  assets/characters/seated/napkin.png       napkin layer for Bryan's lap
+  assets/characters/seated/napkin.png       napkin layer that moves between Bryan's legs
   assets/characters/seated/anchors.json     where everything goes in the scene
 
 Bodies are simple flat shapes in the same style as the heads: flat colours,
@@ -47,7 +47,10 @@ TABLE_W = 440              # table canvas width on the grid
 
 # Top-left corners in the 960 x 540 scene, for the _game images and table.png.
 SCENE = {"bryan": (170, 90), "table": (370, 90), "jane": (470, 90)}
-LAP = (320, 640)           # centre of the lap on the grid
+# Where the napkin can sit on Bryan, on the grid. He faces the viewer, so his
+# left leg is on the right of the picture. The napkin starts on his left leg.
+LEGS = {"left_leg": (368, 662), "right_leg": (272, 662)}
+NAPKIN_START = "left_leg"
 
 WOOD = (156, 98, 52)
 WOOD_DARK = (112, 68, 36)
@@ -197,9 +200,9 @@ def skin_tone(head):
 def napkin():
     """Folded cloth napkin, separate so the game can pop it in and out."""
     f = Figure()
-    f.poly(NAPKIN, [(24, 50), (154, 38), (164, 82), (20, 94)])
-    f.poly(NAPKIN_SHADE, [(22, 80), (162, 70), (164, 82), (20, 94)])
-    f.poly(NAPKIN, [(64, 46), (100, 20), (128, 42)])        # corner flopping up
+    f.poly(NAPKIN, [(22, 44), (116, 36), (122, 72), (18, 80)])
+    f.poly(NAPKIN_SHADE, [(20, 68), (120, 61), (122, 72), (18, 80)])
+    f.poly(NAPKIN, [(50, 42), (76, 20), (98, 38)])          # corner flopping up
     img = f.render()
     return img.crop(img.getbbox())
 
@@ -254,14 +257,16 @@ def main():
     print("wrote", (OUT_DIR / "table.png").relative_to(ROOT))
     print("wrote", (OUT_DIR / "napkin.png").relative_to(ROOT))
 
-    # Napkin's top-left corner in the scene, centred on Bryan's lap.
+    # Napkin's top-left corner in the scene for each of Bryan's legs.
     bx, by = SCENE["bryan"]
-    lap = (bx + round(LAP[0] * SCALE), by + round(LAP[1] * SCALE))
+    spots = {}
+    for leg, (x, y) in LEGS.items():
+        cx, cy = bx + round(x * SCALE), by + round(y * SCALE)
+        spots[leg] = {"x": cx - nap.width // 2, "y": cy - nap.height // 2}
     anchors = {
         "scene": {"w": 960, "h": 540},
         "layers": {k: {"x": x, "y": y} for k, (x, y) in SCENE.items()},
-        "napkin": {"x": lap[0] - nap.width // 2, "y": lap[1] - nap.height // 2,
-                   "w": nap.width, "h": nap.height},
+        "napkin": {"w": nap.width, "h": nap.height, "start": NAPKIN_START, "spots": spots},
     }
     (OUT_DIR / "anchors.json").write_text(json.dumps(anchors, indent=2) + "\n")
 
@@ -269,7 +274,7 @@ def main():
         scene = Image.new("RGBA", (960, 540), (236, 228, 214, 255))
         for name in ("bryan", "jane", "table"):
             scene.alpha_composite(layers[name], SCENE[name])
-        n = anchors["napkin"]
+        n = anchors["napkin"]["spots"][NAPKIN_START]
         scene.alpha_composite(nap, (n["x"], n["y"]))
         scene.convert("RGB").save(OUT_DIR / "preview.png")
         print("wrote", (OUT_DIR / "preview.png").relative_to(ROOT))

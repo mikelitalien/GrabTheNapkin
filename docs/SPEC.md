@@ -128,9 +128,9 @@ phone.
 
 These are the defaults I picked. Each is easy to change.
 
-1. **Napkin behavior.** It pops up on Bryan's lap and disappears on its own
-   if you miss it. Should anything else happen when you miss, like Bryan
-   wiping his mouth with it or Jane grabbing it first?
+1. **Napkin behavior.** Decided: when you don't grab the napkin in time,
+   Jane reaches over and snatches it first, with a smug look. Until the
+   animation is built in milestone 3, the napkin just disappears.
 2. **Misses.** Decided: a wrong click costs 1 point, and the score never
    drops below 0.
 3. **One spot or several.** Classic whack-a-mole has several holes. Here

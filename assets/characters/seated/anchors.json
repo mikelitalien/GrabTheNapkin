@@ -1,0 +1,11 @@
+{
+  "game_height": 450,
+  "bryan_lap": {
+    "x": 200,
+    "y": 300
+  },
+  "napkin_size": {
+    "w": 81,
+    "h": 46
+  }
+}

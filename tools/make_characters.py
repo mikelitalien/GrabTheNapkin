@@ -7,6 +7,8 @@ Reads assets/characters/cartoon/<name>.png (made by cartoonize.py) and writes:
   assets/characters/seated/<name>_game.png  450 px tall, for the 960x540 scene
   assets/characters/seated/table.png        hightop table, same scale as _game
   assets/characters/seated/napkin.png       napkin layer that moves between Bryan's legs
+  assets/characters/seated/fork.png         decoy that pops up instead of the napkin
+  assets/characters/seated/phone.png        decoy that pops up instead of the napkin
   assets/characters/seated/anchors.json     where everything goes in the scene
 
 Bodies are simple flat shapes in the same style as the heads: flat colours,
@@ -58,6 +60,11 @@ METAL = (120, 124, 134)
 METAL_DARK = (88, 92, 102)
 NAPKIN = (246, 244, 236)
 NAPKIN_SHADE = (214, 210, 200)
+STEEL = (198, 204, 214)
+STEEL_SHADE = (150, 158, 172)
+PHONE = (44, 46, 58)
+SCREEN = (92, 170, 222)
+SCREEN_GLARE = (150, 206, 240)
 
 CHARACTERS = {
     "bryan": {
@@ -207,6 +214,31 @@ def napkin():
     return img.crop(img.getbbox())
 
 
+def fork():
+    """Decoy: a fork lying across the lap, tines to screen-right."""
+    f = Figure()
+    f.rrect(STEEL, (10, 50, 78, 70), 10)                    # handle
+    f.rrect(STEEL_SHADE, (16, 61, 74, 70), 5)
+    f.poly(STEEL, [(74, 52), (94, 36), (94, 84), (74, 68)])  # neck
+    for y in (36, 54, 72):                                  # tines
+        f.rrect(STEEL, (90, y, 130, y + 12), 5)
+    img = f.render()
+    return img.crop(img.getbbox())
+
+
+def phone():
+    """Decoy: a phone lying on the lap, screen up."""
+    f = Figure()
+    f.rrect(PHONE, (16, 30, 120, 82), 10)
+    f.rrect(SCREEN, (26, 37, 110, 75), 4)
+    f.poly(SCREEN_GLARE, [(40, 37), (58, 37), (40, 60)])
+    img = f.render()
+    return img.crop(img.getbbox())
+
+
+DECOYS = {"fork": fork, "phone": phone}
+
+
 def round_bottom(head):
     """Round off the bottom corners so hair doesn't end in a flat cut."""
     w, h = head.size
@@ -256,6 +288,11 @@ def main():
     nap.save(OUT_DIR / "napkin.png", optimize=True)
     print("wrote", (OUT_DIR / "table.png").relative_to(ROOT))
     print("wrote", (OUT_DIR / "napkin.png").relative_to(ROOT))
+    decoys = {}
+    for name, draw in DECOYS.items():
+        decoys[name] = to_game(draw())
+        decoys[name].save(OUT_DIR / f"{name}.png", optimize=True)
+        print("wrote", (OUT_DIR / f"{name}.png").relative_to(ROOT))
 
     # Napkin's top-left corner in the scene for each of Bryan's legs.
     bx, by = SCENE["bryan"]
@@ -267,6 +304,8 @@ def main():
         "scene": {"w": 960, "h": 540},
         "layers": {k: {"x": x, "y": y} for k, (x, y) in SCENE.items()},
         "napkin": {"w": nap.width, "h": nap.height, "start": NAPKIN_START, "spots": spots},
+        # Decoys pop up on the same leg spots, centred where the napkin would be.
+        "decoys": {k: {"w": d.width, "h": d.height} for k, d in decoys.items()},
     }
     (OUT_DIR / "anchors.json").write_text(json.dumps(anchors, indent=2) + "\n")
 

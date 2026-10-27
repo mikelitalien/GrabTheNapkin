@@ -10,9 +10,38 @@
   <main id="stage">
     <canvas id="scene" width="960" height="540"></canvas>
     <div id="overlay">
-      <h1 id="overlay-title">Grab the Napkin</h1>
-      <p id="overlay-text">Click the napkin whenever it shows up on Bryan's lap. Missing costs a point. You have 30 seconds.</p>
-      <button id="play" type="button" disabled>Play</button>
+      <section id="start-screen" class="screen">
+        <h1>Grab the Napkin</h1>
+        <p id="start-text">Click the napkin whenever it shows up on Bryan's lap. Leave the fork and the phone alone. Missing costs a point. You have 30 seconds.</p>
+        <div class="board"></div>
+        <div class="buttons">
+          <button id="play" class="big" type="button" disabled>Play</button>
+        </div>
+        <div class="clear">
+          <button id="clear" class="small" type="button">Clear scores</button>
+          <span id="clear-confirm" hidden>
+            Clear every score?
+            <button id="clear-yes" class="small danger" type="button">Yes, clear</button>
+            <button id="clear-no" class="small" type="button">No</button>
+          </span>
+        </div>
+      </section>
+
+      <section id="over-screen" class="screen" hidden>
+        <h1>Time's up!</h1>
+        <p id="over-text"></p>
+        <form id="name-form" hidden>
+          <label for="name">You made the top 10! Your name:</label>
+          <input id="name" name="name" maxlength="12" autocomplete="nickname" spellcheck="false" required>
+          <button class="big" type="submit">Save</button>
+          <button id="skip" class="small" type="button">Skip</button>
+        </form>
+        <div class="board"></div>
+        <div class="buttons" id="over-buttons">
+          <button id="again" class="big" type="button">Play again</button>
+          <button id="back" class="small" type="button">Back to start</button>
+        </div>
+      </section>
     </div>
   </main>
   <script type="module" src="src/main.js"></script>

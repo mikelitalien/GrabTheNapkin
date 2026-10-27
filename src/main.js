@@ -1,20 +1,26 @@
-// Loads the scene, runs the round, draws everything and handles clicks.
+// Loads the scene, runs the screens and the round, draws everything and
+// handles clicks.
 
-import { ANCHORS_URL, IMAGES, MISS_FLASH } from "./config.js";
+import { ANCHORS_URL, IMAGES, MISS_FLASH, COUNTDOWN, NAME_MAX } from "./config.js";
 import { Round } from "./round.js";
+import * as board from "./leaderboard.js";
 
-const canvas = document.getElementById("scene");
+const $ = (id) => document.getElementById(id);
+const canvas = $("scene");
 const ctx = canvas.getContext("2d");
-const overlay = document.getElementById("overlay");
-const overlayTitle = document.getElementById("overlay-title");
-const overlayText = document.getElementById("overlay-text");
-const playButton = document.getElementById("play");
+const overlay = $("overlay");
+const startScreen = $("start-screen");
+const overScreen = $("over-screen");
+const playButton = $("play");
+const nameForm = $("name-form");
+const nameInput = $("name");
 
 let anchors;
 let images;
 let round = null;
-let roundStart = 0;
+let roundStart = 0; // when play begins; the countdown runs before it
 let misses = []; // { x, y, at } red "-1" pops, at = round time
+let lastPlace = -1; // where the latest saved score landed, for highlighting
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -36,33 +42,126 @@ async function load() {
 }
 
 const now = () => performance.now() / 1000;
-const roundTime = () => now() - roundStart;
+const roundTime = () => now() - roundStart; // negative during the countdown
+
+// --- screens -------------------------------------------------------------
+
+function show(screen) {
+  overlay.hidden = !screen;
+  startScreen.hidden = screen !== startScreen;
+  overScreen.hidden = screen !== overScreen;
+}
+
+// Fill every leaderboard on the page from what's saved.
+function renderBoards() {
+  const scores = board.loadScores();
+  document.querySelector(".clear").hidden = !scores.length;
+  for (const el of document.querySelectorAll(".board")) {
+    el.replaceChildren();
+    if (!scores.length) {
+      const p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "No scores yet. Be the first!";
+      el.append(p);
+      continue;
+    }
+    const table = document.createElement("table");
+    scores.forEach((e, i) => {
+      const tr = table.insertRow();
+      if (i === lastPlace && el.closest("#over-screen")) tr.className = "new";
+      for (const [cls, text] of [["rank", `${i + 1}.`], ["name", e.name], ["score", e.score], ["date", e.date]]) {
+        const td = tr.insertCell();
+        td.className = cls;
+        td.textContent = text;
+      }
+    });
+    el.append(table);
+  }
+}
+
+function showStart() {
+  lastPlace = -1;
+  hideClearConfirm();
+  renderBoards();
+  show(startScreen);
+  playButton.focus();
+}
+
+function showGameOver() {
+  const s = round.score;
+  const bits = [];
+  if (round.misses) bits.push(`${round.misses} ${round.misses === 1 ? "miss" : "misses"}`);
+  if (round.decoyClicks) bits.push(`${round.decoyClicks} ${round.decoyClicks === 1 ? "decoy" : "decoys"} grabbed`);
+  $("over-text").textContent = `You scored ${s} ${s === 1 ? "point" : "points"}` +
+    (bits.length ? ` (${bits.join(", ")}).` : ".");
+  $("over-text").dataset.score = s;
+
+  lastPlace = -1;
+  const qualifies = board.placeFor(s) !== -1;
+  nameForm.hidden = !qualifies;
+  $("over-buttons").hidden = qualifies;
+  renderBoards();
+  show(overScreen);
+  if (qualifies) {
+    nameInput.value = board.lastName();
+    nameInput.focus();
+    nameInput.select();
+  } else {
+    $("again").focus();
+  }
+}
+
+nameForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = board.cleanName(nameInput.value);
+  if (!name) return;
+  board.rememberName(name);
+  lastPlace = board.addScore(name, round.score).place;
+  nameForm.hidden = true;
+  $("over-buttons").hidden = false;
+  renderBoards();
+  $("again").focus();
+});
+nameInput.maxLength = NAME_MAX;
+$("skip").addEventListener("click", () => {
+  nameForm.hidden = true;
+  $("over-buttons").hidden = false;
+  $("again").focus();
+});
+
+function hideClearConfirm() {
+  $("clear").hidden = false;
+  $("clear-confirm").hidden = true;
+}
+
+$("clear").addEventListener("click", () => {
+  $("clear").hidden = true;
+  $("clear-confirm").hidden = false;
+  $("clear-no").focus();
+});
+$("clear-no").addEventListener("click", hideClearConfirm);
+$("clear-yes").addEventListener("click", () => {
+  board.clearScores();
+  hideClearConfirm();
+  renderBoards();
+});
+
+// --- the round -------------------------------------------------------------
 
 function startRound() {
-  round = new Round(anchors.napkin.spots, anchors.napkin);
-  roundStart = now();
+  round = new Round(anchors.napkin.spots, anchors.napkin, anchors.decoys);
+  roundStart = now() + COUNTDOWN;
   misses = [];
-  overlay.hidden = true;
+  show(null);
   window.game = round; // handy for poking at from the browser console
   requestAnimationFrame(frame);
 }
 
-function endRound() {
-  const s = round.score;
-  overlayTitle.textContent = "Time's up!";
-  overlayText.textContent = `You grabbed the napkin ${s} ${s === 1 ? "time" : "times"}` +
-    (round.misses ? ` (after ${round.misses} ${round.misses === 1 ? "miss" : "misses"}).` : ".");
-  overlayText.dataset.score = s;
-  playButton.textContent = "Play again";
-  overlay.hidden = false;
-  playButton.focus();
-}
-
 function frame() {
   const t = roundTime();
-  round.update(t);
+  if (t >= 0) round.update(t);
   draw(t);
-  if (round.over) endRound();
+  if (round.over) showGameOver();
   else requestAnimationFrame(frame);
 }
 
@@ -88,6 +187,11 @@ function drawLayer(name) {
   ctx.drawImage(images[name], x, y);
 }
 
+function outlinedText(text, x, y) {
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+}
+
 function drawHud(t) {
   ctx.save();
   ctx.font = "bold 30px system-ui, sans-serif";
@@ -96,16 +200,32 @@ function drawHud(t) {
   ctx.lineJoin = "round";
   ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
   ctx.fillStyle = "#22181e";
-  const score = `Score: ${round ? round.score : 0}`;
   ctx.textAlign = "left";
-  ctx.strokeText(score, 24, 20);
-  ctx.fillText(score, 24, 20);
-  const left = round ? Math.ceil(round.timeLeft(t)) : 30;
-  const time = `Time: ${left}`;
+  outlinedText(`Score: ${round ? round.score : 0}`, 24, 20);
+  const left = round ? Math.ceil(round.timeLeft(Math.max(t, 0))) : 30;
   ctx.textAlign = "right";
   if (round && !round.over && left <= 5) ctx.fillStyle = "#c0392b";
-  ctx.strokeText(time, anchors.scene.w - 24, 20);
-  ctx.fillText(time, anchors.scene.w - 24, 20);
+  outlinedText(`Time: ${left}`, anchors.scene.w - 24, 20);
+  ctx.restore();
+}
+
+// Big 3, 2, 1 in the middle of the scene, each one shrinking as it goes.
+function drawCountdown(t) {
+  if (t >= 0) return;
+  const n = Math.ceil(-t);
+  const k = n + t; // 1 down to 0 within each number
+  ctx.save();
+  ctx.fillStyle = "rgba(43, 31, 26, 0.35)";
+  ctx.fillRect(0, 0, anchors.scene.w, anchors.scene.h);
+  ctx.font = `bold ${Math.round(120 + 80 * k)}px system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 10;
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#22181e";
+  ctx.fillStyle = "white";
+  ctx.globalAlpha = 0.4 + 0.6 * k;
+  outlinedText(String(n), anchors.scene.w / 2, anchors.scene.h / 2);
   ctx.restore();
 }
 
@@ -121,9 +241,7 @@ function drawMisses(t) {
     const k = (t - m.at) / MISS_FLASH;
     ctx.globalAlpha = 1 - k;
     ctx.fillStyle = "#d62c1f";
-    const y = m.y - 30 * k;
-    ctx.strokeText("-1", m.x, y);
-    ctx.fillText("-1", m.x, y);
+    outlinedText("-1", m.x, m.y - 30 * k);
   }
   ctx.restore();
 }
@@ -133,10 +251,11 @@ function draw(t) {
   drawLayer("bryan");
   drawLayer("table");
   drawLayer("jane");
-  const r = round && round.napkinRect();
-  if (r) ctx.drawImage(images.napkin, r.x, r.y);
+  const r = round && round.popupRect();
+  if (r) ctx.drawImage(images[r.kind], r.x, r.y);
   drawMisses(t);
   drawHud(t);
+  drawCountdown(t);
 }
 
 // --- input ---------------------------------------------------------------
@@ -153,21 +272,27 @@ function toScene(e) {
 canvas.addEventListener("pointerdown", (e) => {
   if (!round || round.over) return;
   e.preventDefault();
-  const { x, y } = toScene(e);
   const t = roundTime();
-  if (round.click(x, y, t) === "miss") misses.push({ x, y, at: t });
+  if (t < 0) return; // still counting down
+  const { x, y } = toScene(e);
+  const result = round.click(x, y, t);
+  if (result === "miss" || result === "decoy") misses.push({ x, y, at: t });
 });
 
 playButton.addEventListener("click", startRound);
+$("again").addEventListener("click", startRound);
+$("back").addEventListener("click", showStart);
 
+renderBoards();
 load().then(
   () => {
     draw(0);
     playButton.disabled = false;
+    playButton.focus();
   },
   (err) => {
-    overlayTitle.textContent = "Couldn't load the game";
-    overlayText.textContent = `${err.message}. Run it with "python3 -m http.server 8000" from the repo folder.`;
+    startScreen.querySelector("h1").textContent = "Couldn't load the game";
+    $("start-text").textContent = `${err.message}. Run it with "python3 -m http.server 8000" from the repo folder.`;
     playButton.hidden = true;
   }
 );

@@ -49,32 +49,143 @@ body {
   display: none;
 }
 
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.screen[hidden],
+#overlay [hidden] {
+  display: none;
+}
+
 #overlay h1 {
   margin: 0;
-  font-size: clamp(28px, 6vw, 56px);
+  font-size: clamp(26px, 5.5vw, 52px);
   text-shadow: 0 3px 0 #22181e;
 }
 
 #overlay p {
   margin: 0;
-  max-width: 28em;
-  font-size: clamp(15px, 2.4vw, 22px);
+  max-width: 30em;
+  font-size: clamp(13px, 2vw, 20px);
 }
 
-#play {
-  margin-top: 0.6em;
-  padding: 0.5em 1.6em;
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-top: 0.3em;
+}
+
+#overlay button {
   font: inherit;
-  font-size: clamp(18px, 3vw, 28px);
   font-weight: bold;
   color: white;
-  background: #c0392b;
   border: 3px solid #22181e;
   border-radius: 999px;
   cursor: pointer;
 }
 
-#play:disabled {
+#overlay button.big {
+  padding: 0.4em 1.5em;
+  font-size: clamp(16px, 2.8vw, 26px);
+  background: #c0392b;
+}
+
+#overlay button.small {
+  padding: 0.25em 0.9em;
+  font-size: clamp(12px, 1.6vw, 15px);
+  background: #6b4a33;
+}
+
+#overlay button.danger {
+  background: #c0392b;
+}
+
+#overlay button:disabled {
   opacity: 0.5;
   cursor: wait;
+}
+
+.clear {
+  font-size: clamp(12px, 1.6vw, 15px);
+}
+
+/* Leaderboard */
+.board table {
+  border-collapse: collapse;
+  font-size: clamp(12px, 1.8vw, 18px);
+  background: rgba(34, 24, 30, 0.6);
+  border-radius: 10px;
+}
+
+.board td {
+  padding: 0.12em 0.6em;
+  text-align: left;
+}
+
+.board td.rank,
+.board td.score {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.board td.score {
+  font-weight: bold;
+}
+
+.board td.date {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.board tr.new {
+  background: #f1c40f;
+  color: #22181e;
+}
+
+.board .empty {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+#name-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  font-size: clamp(14px, 2vw, 20px);
+}
+
+#name {
+  width: 9em;
+  padding: 0.3em 0.5em;
+  font: inherit;
+  font-weight: bold;
+  border: 3px solid #22181e;
+  border-radius: 8px;
+}
+
+/* Short screens (phones held sideways): drop the extras so a full board
+   and the buttons still fit. */
+@media (max-height: 520px) {
+  #start-text,
+  .board td.date {
+    display: none;
+  }
+
+  .board td {
+    padding: 0 0.5em;
+  }
+
+  .screen {
+    gap: 0.3em;
+  }
 }

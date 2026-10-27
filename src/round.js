@@ -1,23 +1,26 @@
-// One 30 second round: when the napkin shows, where, and the score.
+// One 30 second round: when the napkin (or a decoy) shows, where, and the score.
 // No drawing or DOM here, so the rules can be checked on their own.
 // Times are in seconds since the round started.
 
-import { ROUND_SECONDS, TIMING, FIRST_GAP, HIT_PADDING } from "./config.js";
+import { ROUND_SECONDS, TIMING, FIRST_GAP, HIT_PADDING, DECOY_CHANCE, DECOYS } from "./config.js";
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
 export class Round {
   // spots: { name: { x, y } } top-left corners for the napkin.
-  // size: { w, h } of the napkin. random: () => [0, 1), swappable for tests.
-  constructor(spots, size, random = Math.random) {
+  // size: { w, h } of the napkin. decoys: { kind: { w, h } }, centred on the
+  // same spots. random: () => [0, 1), swappable for tests.
+  constructor(spots, size, decoys = {}, random = Math.random) {
     this.spots = spots;
     this.size = size;
+    this.decoySizes = decoys;
     this.random = random;
     this.score = 0;
     this.grabs = 0;
-    this.misses = 0;
+    this.misses = 0; // clicks on nothing
+    this.decoyClicks = 0; // clicks on a fork or phone
     this.snatched = 0; // napkins nobody grabbed in time (Jane takes them)
-    this.napkin = null; // { spot, shownAt, hideAt } while showing
+    this.popup = null; // { kind, spot, shownAt, hideAt } while showing
     this.nextShowAt = FIRST_GAP;
     this.over = false;
   }
@@ -47,21 +50,28 @@ export class Round {
     return names[Math.floor(this.random() * names.length)];
   }
 
+  // "napkin" most of the time, otherwise one of the decoys that has art.
+  pickKind() {
+    const kinds = DECOYS.filter((k) => this.decoySizes[k]);
+    if (!kinds.length || this.random() >= DECOY_CHANCE) return "napkin";
+    return kinds[Math.floor(this.random() * kinds.length)];
+  }
+
   // Move the round forward to time t.
   // Loops so a long pause between frames (a background tab) still plays out
-  // every napkin it skipped over, in order.
+  // every pop-up it skipped over, in order.
   update(t) {
     while (!this.over) {
-      if (this.napkin && t >= this.napkin.hideAt) {
-        this.snatched++;
-        this.hide(this.napkin.hideAt);
-      } else if (!this.napkin && this.nextShowAt >= ROUND_SECONDS) {
+      if (this.popup && t >= this.popup.hideAt) {
+        if (this.popup.kind === "napkin") this.snatched++;
+        this.hide(this.popup.hideAt);
+      } else if (!this.popup && this.nextShowAt >= ROUND_SECONDS) {
         if (t < ROUND_SECONDS) return;
         this.over = true;
-      } else if (!this.napkin && t >= this.nextShowAt) {
+      } else if (!this.popup && t >= this.nextShowAt) {
         const shownAt = this.nextShowAt;
         const hideAt = Math.min(shownAt + this.upTime(shownAt), ROUND_SECONDS);
-        this.napkin = { spot: this.pickSpot(), shownAt, hideAt };
+        this.popup = { kind: this.pickKind(), spot: this.pickSpot(), shownAt, hideAt };
       } else {
         return;
       }
@@ -69,31 +79,49 @@ export class Round {
   }
 
   hide(t) {
-    this.napkin = null;
+    this.popup = null;
     this.nextShowAt = t + this.gap(t);
   }
 
-  // Napkin rectangle in scene pixels, or null when it isn't showing.
-  napkinRect() {
-    if (!this.napkin) return null;
-    const { x, y } = this.spots[this.napkin.spot];
-    return { x, y, w: this.size.w, h: this.size.h };
+  // What's showing and where, in scene pixels, or null when nothing is.
+  // Decoys are centred where the napkin would sit on that leg.
+  popupRect() {
+    if (!this.popup) return null;
+    const { kind, spot } = this.popup;
+    const { x, y } = this.spots[spot];
+    if (kind === "napkin") return { kind, x, y, w: this.size.w, h: this.size.h };
+    const { w, h } = this.decoySizes[kind];
+    const cx = x + this.size.w / 2;
+    const cy = y + this.size.h / 2;
+    return { kind, x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h };
   }
 
-  // A click or tap at scene point (x, y). Returns "grab", "miss" or null.
+  // Just the napkin's rectangle, or null when it isn't the napkin showing.
+  napkinRect() {
+    const r = this.popupRect();
+    return r && r.kind === "napkin" ? r : null;
+  }
+
+  // A click or tap at scene point (x, y). Returns "grab", "decoy", "miss" or null.
   click(x, y, t) {
     this.update(t);
     if (this.over) return null;
-    const r = this.napkinRect();
+    const r = this.popupRect();
     const p = HIT_PADDING;
-    if (r && x >= r.x - p && x <= r.x + r.w + p && y >= r.y - p && y <= r.y + r.h + p) {
+    const hit = r && x >= r.x - p && x <= r.x + r.w + p && y >= r.y - p && y <= r.y + r.h + p;
+    if (hit && r.kind === "napkin") {
       this.score++;
       this.grabs++;
       this.hide(t);
       return "grab";
     }
-    this.misses++;
     this.score = Math.max(this.score - 1, 0);
+    if (hit) {
+      this.decoyClicks++;
+      this.hide(t);
+      return "decoy";
+    }
+    this.misses++;
     return "miss";
   }
 }

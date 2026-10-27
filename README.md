@@ -4,7 +4,9 @@ A small video game starring Bryan and Jane.
 
 ## Status
 
-Milestone 1 (a playable 30 second round) works. The spec is in
+Milestones 1 and 2 work: a 30 second round with fork and phone decoys, a
+start screen, a 3-2-1 countdown, and a top 10 leaderboard saved in the
+browser. The spec is in
 `docs/SPEC.md`.
 
 ## Layout
@@ -14,8 +16,9 @@ index.html             the game page
 style.css              scales the 960 x 540 scene to fit the window
 src/
   config.js            napkin timing, hit area and asset paths, all tunable
-  round.js             the rules: when and where the napkin shows, scoring
-  main.js              loads the art, draws the scene, handles clicks
+  round.js             the rules: when and where the napkin or a decoy shows, scoring
+  leaderboard.js       the top 10, saved in the browser's localStorage
+  main.js              screens, countdown, drawing the scene, clicks
 assets/
   characters/
     bryan.png    character cutout (transparent PNG)
@@ -29,6 +32,7 @@ assets/
       bryan_game.png, jane_game.png       320 x 450, for the 960 x 540 scene
       table.png                           hightop table, same scale
       napkin.png                          napkin layer, moves between Bryan's legs
+      fork.png, phone.png                 decoys that pop up instead of the napkin
       anchors.json                        where each layer and napkin spot is in the scene
       preview.png                         the whole scene, napkin on
     source/      original photos and crops (not committed, see .gitignore)

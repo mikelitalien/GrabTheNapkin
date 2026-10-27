@@ -85,6 +85,9 @@ assets/
   scene/                background, table, stools, napkin
 ```
 
+- Published with GitHub Pages from `main` at
+  https://mikelitalien.github.io/GrabTheNapkin/. All asset paths are relative
+  so the game works both locally and under that subfolder.
 - Source photos never go in the repo (already covered by `.gitignore`).
 
 ## Milestones
@@ -101,8 +104,11 @@ The core loop works end to end, with placeholder art where needed.
 - When time runs out, the round stops and the final score is shown with a
   "Play again" button.
 
+- Turn on GitHub Pages for the repo (Settings > Pages > deploy from `main`,
+  root folder).
+
 **Done when:** you can play a full 30 second round in the browser and the
-score is right.
+score is right, both locally and at the GitHub Pages link.
 
 ### Milestone 2: Decoys, scores and leaderboard
 
@@ -136,9 +142,9 @@ reloading the page.
 **Done when:** it looks and sounds finished, and plays well on a laptop and a
 phone.
 
-## Open questions
+## Decisions
 
-These are the defaults I picked. Each is easy to change.
+Mike answered these on 2026-10-27.
 
 1. **Napkin behavior.** Decided: when you don't grab the napkin in time,
    Jane reaches over and snatches it first, with a smug look. Until the
@@ -157,5 +163,6 @@ These are the defaults I picked. Each is easy to change.
 7. **Bodies.** Decided: generic cartoon bodies under the real heads, with a
    little life. They breathe and sway slightly, Jane's arm reaches over for
    her snatches, and Bryan flinches when you grab the napkin (milestone 3).
-8. **Hosting.** Just run locally for now, or put it online later (for
-   example GitHub Pages) so others can play?
+8. **Hosting.** Decided: publish on GitHub Pages once milestone 1 works, so
+   family can play from a link. This makes the game and the cartoon faces
+   public. Source photos still never go in the repo.

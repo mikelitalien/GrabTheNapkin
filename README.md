@@ -4,11 +4,18 @@ A small video game starring Bryan and Jane.
 
 ## Status
 
-Early days. So far there's character art and no game code yet.
+Milestone 1 (a playable 30 second round) works. The spec is in
+`docs/SPEC.md`.
 
 ## Layout
 
 ```
+index.html             the game page
+style.css              scales the 960 x 540 scene to fit the window
+src/
+  config.js            napkin timing, hit area and asset paths, all tunable
+  round.js             the rules: when and where the napkin shows, scoring
+  main.js              loads the art, draws the scene, handles clicks
 assets/
   characters/
     bryan.png    character cutout (transparent PNG)
@@ -44,11 +51,20 @@ detail, where the head crop stops) and run it again.
 
 ## Running
 
-There's nothing to run yet. The plan is a browser game in plain HTML and
-JavaScript, served locally with:
+It's a plain HTML and JavaScript browser game with no build step. From the
+repo folder run:
 
 ```
 python3 -m http.server 8000
 ```
 
-Then open http://localhost:8000.
+Then open http://localhost:8000 and press Play. Opening `index.html`
+straight from the file system won't work, because browsers block loading the
+art that way.
+
+Click the napkin while it's on Bryan's lap for a point. It pops up on one
+leg or the other at random. A click anywhere else costs a point (never below
+0). The napkin gets quicker over the 30 seconds.
+
+All paths are relative, so it also runs from GitHub Pages
+(Settings > Pages > deploy from `main`, root folder).

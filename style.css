@@ -1,0 +1,80 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #2b1f1a;
+  color: #22181e;
+  font-family: system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* The 960 x 540 scene, as big as fits while keeping 16:9. */
+#stage {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+}
+
+#scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 1em;
+  text-align: center;
+  background: rgba(43, 31, 26, 0.55);
+  color: white;
+}
+
+#overlay[hidden] {
+  display: none;
+}
+
+#overlay h1 {
+  margin: 0;
+  font-size: clamp(28px, 6vw, 56px);
+  text-shadow: 0 3px 0 #22181e;
+}
+
+#overlay p {
+  margin: 0;
+  max-width: 28em;
+  font-size: clamp(15px, 2.4vw, 22px);
+}
+
+#play {
+  margin-top: 0.6em;
+  padding: 0.5em 1.6em;
+  font: inherit;
+  font-size: clamp(18px, 3vw, 28px);
+  font-weight: bold;
+  color: white;
+  background: #c0392b;
+  border: 3px solid #22181e;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+#play:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}

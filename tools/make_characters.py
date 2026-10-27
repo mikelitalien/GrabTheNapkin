@@ -5,13 +5,14 @@ Reads assets/characters/cartoon/<name>.png (made by cartoonize.py) and writes:
 
   assets/characters/seated/<name>.png       full-size master, 900 px tall
   assets/characters/seated/<name>_game.png  450 px tall, for the 960x540 scene
+  assets/characters/seated/table.png        hightop table, same scale as _game
   assets/characters/seated/napkin.png       napkin layer for Bryan's lap
-  assets/characters/seated/anchors.json     where things are in the game images
+  assets/characters/seated/anchors.json     where everything goes in the scene
 
 Bodies are simple flat shapes in the same style as the heads: flat colours,
 a thin ink line around each part and a thick ink outline around the whole
-figure. Bryan faces right (toward the table), Jane faces left. Shirt and
-pants colours come from the photos.
+figure. Both face forward, with the table between them. Shirt and pants
+colours come from the photos.
 
 Usage:
   python3 tools/make_characters.py
@@ -28,11 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 HEAD_DIR = ROOT / "assets" / "characters" / "cartoon"
 OUT_DIR = ROOT / "assets" / "characters" / "seated"
 
-# Bodies are laid out on a 640 x 900 grid and drawn at SS times that size,
+# Figures are laid out on a 640 x 900 grid and drawn at SS times that size,
 # then scaled down, which gives smooth edges.
 W, H = 640, 900
 SS = 2
 GAME_HEIGHT = 450
+SCALE = GAME_HEIGHT / H
 INK = (34, 24, 30)
 OUTLINE_PX = 6             # outline around the whole figure
 LINE_PX = 3                # line around each body part
@@ -41,9 +43,16 @@ HEAD_HEIGHT = 300          # head size on the 640 x 900 grid
 HEAD_BOTTOM = 384          # where the head's flat bottom sits, over the collar
 HEAD_TRIM = 0.03           # share of the head's bottom edge (with its ink line) cut off
 
+TABLE_W = 440              # table canvas width on the grid
+
+# Top-left corners in the 960 x 540 scene, for the _game images and table.png.
+SCENE = {"bryan": (170, 90), "table": (370, 90), "jane": (470, 90)}
+LAP = (320, 640)           # centre of the lap on the grid
+
 WOOD = (156, 98, 52)
 WOOD_DARK = (112, 68, 36)
 METAL = (120, 124, 134)
+METAL_DARK = (88, 92, 102)
 NAPKIN = (246, 244, 236)
 NAPKIN_SHADE = (214, 210, 200)
 
@@ -54,7 +63,6 @@ CHARACTERS = {
         "shorts": True,
         "shoes": (70, 52, 40),
         "sleeves": "short",
-        "faces": "right",
     },
     "jane": {
         "shirt": (24, 24, 32),
@@ -62,7 +70,6 @@ CHARACTERS = {
         "shorts": False,
         "shoes": (176, 132, 100),
         "sleeves": "none",
-        "faces": "left",
     },
 }
 
@@ -70,36 +77,34 @@ CHARACTERS = {
 class Figure:
     """Stack of flat-coloured parts, drawn back to front."""
 
-    def __init__(self):
+    def __init__(self, w=W, h=H):
+        self.size = (w * SS, h * SS)
         self.parts = []
 
     def part(self, colour):
-        mask = Image.new("L", (W * SS, H * SS), 0)
+        mask = Image.new("L", self.size, 0)
         self.parts.append((mask, colour))
-        return ImageDraw.Draw(mask), mask
+        return ImageDraw.Draw(mask)
 
     def poly(self, colour, pts):
-        d, _ = self.part(colour)
-        d.polygon([(x * SS, y * SS) for x, y in pts], fill=255)
+        self.part(colour).polygon([(x * SS, y * SS) for x, y in pts], fill=255)
 
     def ellipse(self, colour, box):
-        d, _ = self.part(colour)
-        d.ellipse([v * SS for v in box], fill=255)
+        self.part(colour).ellipse([v * SS for v in box], fill=255)
 
     def rrect(self, colour, box, r):
-        d, _ = self.part(colour)
-        d.rounded_rectangle([v * SS for v in box], radius=r * SS, fill=255)
+        self.part(colour).rounded_rectangle([v * SS for v in box], radius=r * SS, fill=255)
 
     def image(self, img, xy):
         """A ready-made picture (the head), outlined with the rest of the figure."""
-        layer = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
+        layer = Image.new("RGBA", self.size, (0, 0, 0, 0))
         img = img.resize((img.width * SS, img.height * SS), Image.Resampling.LANCZOS)
         layer.paste(img, (xy[0] * SS, xy[1] * SS))
         self.parts.append((layer.getchannel("A"), layer))
 
     def limb(self, colour, pts, width):
         """A thick rounded stroke through the given joints."""
-        d, _ = self.part(colour)
+        d = self.part(colour)
         s = [(x * SS, y * SS) for x, y in pts]
         d.line(s, fill=255, width=width * SS, joint="curve")
         r = width * SS / 2
@@ -107,13 +112,12 @@ class Figure:
             d.ellipse([x - r, y - r, x + r, y + r], fill=255)
 
     def render(self):
-        size = (W * SS, H * SS)
-        union = Image.new("L", size, 0)
+        union = Image.new("L", self.size, 0)
         for mask, _ in self.parts:
             union = ImageChops.lighter(union, mask)
         outline = union.filter(ImageFilter.MaxFilter(OUTLINE_PX * SS * 2 + 1))
 
-        out = Image.new("RGBA", size, (0, 0, 0, 0))
+        out = Image.new("RGBA", self.size, (0, 0, 0, 0))
         out.paste(INK + (255,), mask=outline)
         line = LINE_PX * SS * 2 + 1
         for mask, colour in self.parts:
@@ -123,53 +127,60 @@ class Figure:
                 continue
             inner = mask.filter(ImageFilter.MinFilter(line))
             out.paste(colour + (255,), mask=inner)
-        return out.resize((W, H), Image.Resampling.LANCZOS)
+        return out.resize((self.size[0] // SS, self.size[1] // SS), Image.Resampling.LANCZOS)
 
 
 def stool(f):
-    """Bar stool, seat centred at x=300, y=640."""
-    for x0, x1 in ((222, 246), (354, 378)):          # back legs
-        f.poly(WOOD_DARK, [(x0 + 20, 650), (x1 + 20, 650), (x1 + 10, 892), (x0 + 10, 892)])
-    f.rrect(METAL, (200, 800, 400, 816), 8)          # footrest ring
-    for x0, x1 in ((196, 222), (378, 404)):          # front legs
-        f.poly(WOOD, [(x0 + 18, 650), (x1 + 18, 650), (x1, 892), (x0, 892)])
-    f.ellipse(WOOD, (180, 626, 420, 674))            # seat
+    """Bar stool from the front, seat centred at x=320, y=650."""
+    for x in (262, 352):                              # back legs
+        f.poly(WOOD_DARK, [(x, 660), (x + 26, 660), (x + 26, 880), (x, 880)])
+    f.rrect(METAL, (214, 796, 426, 812), 8)           # footrest
+    for x0, x1 in ((216, 244), (396, 424)):           # front legs
+        f.poly(WOOD, [(x0 + 12, 660), (x1 + 12, 660), (x1, 892), (x0, 892)])
+    f.ellipse(WOOD, (196, 630, 444, 680))             # seat
 
 
 def body(f, c, skin, head):
-    """Seated body facing right. Jane is mirrored afterwards."""
-    sleeve = c["shirt"] if c["sleeves"] == "short" else skin
+    """Seated body facing forward, centred at x=320."""
     shin = skin if c["shorts"] else c["pants"]
 
-    # Far arm, mostly hidden behind the torso, hand on the far thigh.
-    f.limb(skin, [(250, 370), (240, 500), (330, 575)], 42)
-
-    # Far leg, a little higher up the stool so both feet show.
-    f.limb(shin, [(444, 620), (440, 790)], 50 if c["shorts"] else 58)
-    f.limb(c["pants"], [(270, 606), (448, 598)], 72)
-    f.ellipse(c["shoes"], (414, 772, 506, 812))
+    # Shins hang from the knees to the footrest.
+    for x in (272, 368):
+        f.limb(shin, [(x, 690), (x, 790)], 52 if c["shorts"] else 60)
+    for x in (272, 368):
+        f.ellipse(c["shoes"], (x - 44, 784, x + 44, 828))
 
     # Head goes behind the torso so the collar hides its cut-off bottom.
     f.image(head, ((W - head.width) // 2, HEAD_BOTTOM - head.height))
 
     # Torso. A tank top shows bare shoulders.
     if c["sleeves"] == "none":
-        f.rrect(skin, (200, 356, 400, 450), 46)
-        f.poly(c["shirt"], [(234, 362), (366, 362), (390, 420), (396, 624),
-                            (204, 624), (210, 420)])
+        f.rrect(skin, (218, 356, 422, 450), 46)
+        f.poly(c["shirt"], [(254, 362), (386, 362), (410, 420), (416, 640),
+                            (224, 640), (230, 420)])
     else:
-        f.rrect(c["shirt"], (200, 356, 400, 624), 46)
+        f.rrect(c["shirt"], (218, 356, 422, 640), 46)
 
-    # Near leg: shin down to the footrest, thigh forward over the seat.
-    f.limb(shin, [(470, 650), (470, 800)], 54 if c["shorts"] else 62)
-    f.limb(c["pants"], [(250, 636), (476, 628)], 82)
-    f.ellipse(c["shoes"], (442, 786, 548, 830))
+    # Thighs come toward the viewer, so they show as short shapes: the lap.
+    f.rrect(c["pants"], (226, 604, 318, 704), 34)
+    f.rrect(c["pants"], (322, 604, 414, 704), 34)
 
-    # Near arm: upper arm down the side, forearm resting on the thigh.
-    f.limb(skin, [(372, 380), (388, 520), (472, 590)], 46)
-    f.ellipse(skin, (452, 568, 500, 612))             # hand
-    if c["sleeves"] == "short":
-        f.limb(sleeve, [(372, 376), (382, 440)], 62)
+    # Arms down the sides, hands resting on the thighs.
+    for sx, ex, hx in ((236, 214, 256), (404, 426, 384)):
+        f.limb(skin, [(sx, 384), (ex, 520), (hx, 614)], 44)
+        f.ellipse(skin, (hx - 26, 596, hx + 26, 644))
+        if c["sleeves"] == "short":
+            f.limb(c["shirt"], [(sx, 380), (sx + (ex - sx) // 2, 446)], 60)
+
+
+def table():
+    """Hightop table on a pedestal, top at about chest height when seated."""
+    f = Figure(TABLE_W, H)
+    f.ellipse(METAL_DARK, (100, 852, 340, 896))       # base
+    f.rrect(METAL, (204, 560, 236, 872), 12)          # pedestal
+    f.ellipse(WOOD_DARK, (16, 516, 424, 588))         # edge of the top
+    f.ellipse(WOOD, (16, 500, 424, 568))              # top
+    return f.render()
 
 
 def skin_tone(head):
@@ -193,24 +204,6 @@ def napkin():
     return img.crop(img.getbbox())
 
 
-def make(name, c):
-    head = Image.open(HEAD_DIR / f"{name}.png").convert("RGBA")
-    head = head.crop((0, 0, head.width, round(head.height * (1 - HEAD_TRIM))))
-    head = head.resize((round(head.width * HEAD_HEIGHT / head.height), HEAD_HEIGHT),
-                       Image.Resampling.LANCZOS)
-    head = round_bottom(head)
-    skin = skin_tone(head)
-
-    f = Figure()
-    stool(f)
-    # The figure is drawn facing right and mirrored for Jane. Pre-flip her
-    # head so it ends up the right way round.
-    flip = c["faces"] == "left"
-    body(f, c, skin, head.transpose(Image.Transpose.FLIP_LEFT_RIGHT) if flip else head)
-    img = f.render()
-    return img.transpose(Image.Transpose.FLIP_LEFT_RIGHT) if flip else img
-
-
 def round_bottom(head):
     """Round off the bottom corners so hair doesn't end in a flat cut."""
     w, h = head.size
@@ -222,41 +215,63 @@ def round_bottom(head):
     return head
 
 
+def make(name, c):
+    head = Image.open(HEAD_DIR / f"{name}.png").convert("RGBA")
+    head = head.crop((0, 0, head.width, round(head.height * (1 - HEAD_TRIM))))
+    head = head.resize((round(head.width * HEAD_HEIGHT / head.height), HEAD_HEIGHT),
+                       Image.Resampling.LANCZOS)
+    head = round_bottom(head)
+
+    f = Figure()
+    stool(f)
+    body(f, c, skin_tone(head), head)
+    return f.render()
+
+
+def to_game(img):
+    return img.resize((round(img.width * SCALE), round(img.height * SCALE)),
+                      Image.Resampling.LANCZOS)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--preview", action="store_true", help="write seated/preview.png")
     args = ap.parse_args()
 
     OUT_DIR.mkdir(exist_ok=True)
-    scale = GAME_HEIGHT / H
-    anchors = {"game_height": GAME_HEIGHT}
-    made = {}
+    layers = {}
     for name, c in CHARACTERS.items():
         img = make(name, c)
         img.save(OUT_DIR / f"{name}.png", optimize=True)
-        game = img.resize((round(W * scale), GAME_HEIGHT), Image.Resampling.LANCZOS)
-        game.save(OUT_DIR / f"{name}_game.png", optimize=True)
-        made[name] = img
+        layers[name] = to_game(img)
+        layers[name].save(OUT_DIR / f"{name}_game.png", optimize=True)
         print("wrote", (OUT_DIR / f"{name}.png").relative_to(ROOT))
 
-    nap = napkin()
-    nap_game = nap.resize((round(nap.width * scale), round(nap.height * scale)),
-                          Image.Resampling.LANCZOS)
-    nap_game.save(OUT_DIR / "napkin.png", optimize=True)
-    # Centre of the napkin on Bryan's near thigh, in bryan_game.png pixels.
-    anchors["bryan_lap"] = {"x": round(400 * scale), "y": round(600 * scale)}
-    anchors["napkin_size"] = {"w": nap_game.width, "h": nap_game.height}
-    (OUT_DIR / "anchors.json").write_text(json.dumps(anchors, indent=2) + "\n")
+    layers["table"] = to_game(table())
+    layers["table"].save(OUT_DIR / "table.png", optimize=True)
+    nap = to_game(napkin())
+    nap.save(OUT_DIR / "napkin.png", optimize=True)
+    print("wrote", (OUT_DIR / "table.png").relative_to(ROOT))
     print("wrote", (OUT_DIR / "napkin.png").relative_to(ROOT))
 
+    # Napkin's top-left corner in the scene, centred on Bryan's lap.
+    bx, by = SCENE["bryan"]
+    lap = (bx + round(LAP[0] * SCALE), by + round(LAP[1] * SCALE))
+    anchors = {
+        "scene": {"w": 960, "h": 540},
+        "layers": {k: {"x": x, "y": y} for k, (x, y) in SCENE.items()},
+        "napkin": {"x": lap[0] - nap.width // 2, "y": lap[1] - nap.height // 2,
+                   "w": nap.width, "h": nap.height},
+    }
+    (OUT_DIR / "anchors.json").write_text(json.dumps(anchors, indent=2) + "\n")
+
     if args.preview:
-        sheet = Image.new("RGBA", (W * 2 + 120, H + 80), (236, 228, 214, 255))
-        sheet.alpha_composite(made["bryan"], (40, 40))
-        sheet.alpha_composite(made["jane"], (W + 80, 40))
-        lap = anchors["bryan_lap"]
-        sheet.alpha_composite(nap, (40 + round(lap["x"] / scale) - nap.width // 2,
-                                    40 + round(lap["y"] / scale) - nap.height // 2))
-        sheet.convert("RGB").save(OUT_DIR / "preview.png")
+        scene = Image.new("RGBA", (960, 540), (236, 228, 214, 255))
+        for name in ("bryan", "jane", "table"):
+            scene.alpha_composite(layers[name], SCENE[name])
+        n = anchors["napkin"]
+        scene.alpha_composite(nap, (n["x"], n["y"]))
+        scene.convert("RGB").save(OUT_DIR / "preview.png")
         print("wrote", (OUT_DIR / "preview.png").relative_to(ROOT))
 
 

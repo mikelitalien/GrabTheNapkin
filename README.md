@@ -17,12 +17,13 @@ assets/
       bryan.png, jane.png                 512 px tall
       bryan_sprite.png, jane_sprite.png   128 px tall, for the game
       preview.png                         before/after sheet
-    seated/      heads on cartoon bodies sitting on bar stools (generated)
+    seated/      heads on cartoon bodies on bar stools, plus table (generated)
       bryan.png, jane.png                 640 x 900 masters
       bryan_game.png, jane_game.png       320 x 450, for the 960 x 540 scene
+      table.png                           hightop table, same scale
       napkin.png                          napkin layer for Bryan's lap
-      anchors.json                        where the napkin goes on bryan_game.png
-      preview.png                         both characters, napkin on
+      anchors.json                        where each layer goes in the scene
+      preview.png                         the whole scene, napkin on
     source/      original photos and crops (not committed, see .gitignore)
 tools/
   cartoonize.py        makes assets/characters/cartoon/ from the cutouts

@@ -33,6 +33,10 @@ The output is deterministic. Tweak the look with the constants at the top of
 `tools/cartoonize.py` (outline thickness, number of shading bands, line
 detail) and run it again.
 
+## Game spec
+
+See [docs/SPEC.md](docs/SPEC.md) for how the game plays and the milestone plan.
+
 ## Running
 
 There's nothing to run yet. The plan is a browser game in plain HTML and

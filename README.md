@@ -49,6 +49,10 @@ The output is deterministic. Tweak the look with the constants at the top of
 `tools/cartoonize.py` (outline thickness, number of shading bands, line
 detail, where the head crop stops) and run it again.
 
+## Game spec
+
+See [docs/SPEC.md](docs/SPEC.md) for how the game plays and the milestone plan.
+
 ## Running
 
 It's a plain HTML and JavaScript browser game with no build step. From the

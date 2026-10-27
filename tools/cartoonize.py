@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Turn the character cutouts into cartoon-style game art.
+"""Turn the character cutouts into cartoon head art for the game.
 
-Reads every transparent PNG in assets/characters/ and writes, for each one:
+Reads every transparent PNG in assets/characters/, crops it to the head and
+writes, for each one:
 
   assets/characters/cartoon/<name>.png         512 px tall master
-  assets/characters/cartoon/<name>_sprite.png  160 px tall in-game sprite
+  assets/characters/cartoon/<name>_sprite.png  128 px tall in-game sprite
 
 The look is a flat cel-shaded cartoon: smoothed skin and cloth, a few
 flat brightness bands, dark ink lines on strong edges and a thick
@@ -30,15 +31,52 @@ CHAR_DIR = ROOT / "assets" / "characters"
 OUT_DIR = CHAR_DIR / "cartoon"
 
 MASTER_HEIGHT = 512
-SPRITE_HEIGHT = 160
-WORK_HEIGHT = 768          # resolution the filters run at
-TONE_BANDS = 7             # flat brightness bands
+SPRITE_HEIGHT = 128
+WORK_HEIGHT = 512          # resolution the filters run at
+TONE_BANDS = 6             # flat brightness bands
 INK = (34, 24, 30)         # line and outline colour
 OUTLINE_PX = 6             # silhouette outline at WORK_HEIGHT
-EDGE_THRESHOLD = 5.0       # higher means fewer interior lines
+EDGE_THRESHOLD = 7.0       # higher means fewer interior lines
 LINE_SIGMA = 3.0           # size of features that get a line
-SMOOTH_PASSES = 2
+SMOOTH_PASSES = 3
 SATURATION_BOOST = 1.15
+NECK_JUMP = 1.12           # silhouette widening that marks the shoulders
+NECK_KEEP = 0.0            # neck kept below the head, as a share of head height
+
+# Hand-picked head boxes (left, top, right, bottom in source pixels) for any
+# cutout where the automatic neck finder gets it wrong.
+HEAD_OVERRIDES = {}
+
+
+def find_head(alpha):
+    """Box around the head: from the top of the silhouette down to the neck.
+
+    Walks down the rows, tracking the narrowest width seen since the widest
+    part of the head, and stops where the silhouette suddenly widens into
+    the shoulders.
+    """
+    a = np.asarray(alpha) >= 128
+    rows = np.flatnonzero(a.any(axis=1))
+    top = rows[0]
+    widths = a.sum(axis=1)
+    widest = narrowest = 0
+    neck = None
+    for y in range(top, top + len(a) // 2):
+        w = widths[y]
+        if narrowest == 0:
+            widest = max(widest, w)
+            if w < widest * 0.95:
+                narrowest = w
+        elif w > narrowest * NECK_JUMP:
+            neck = y
+            break
+        else:
+            narrowest = min(narrowest, w)
+    if neck is None:
+        raise SystemExit("couldn't find the neck; add a HEAD_OVERRIDES entry")
+    bottom = neck + round((neck - top) * NECK_KEEP)
+    xs = np.flatnonzero(a[top:bottom].any(axis=0))
+    return xs[0], top, xs[-1] + 1, bottom
 
 
 def clean_alpha(alpha):
@@ -104,10 +142,14 @@ def ink_lines(rgb, mask):
     return Image.composite(lines, Image.new("L", lines.size, 0), inner)
 
 
-def cartoonize(src):
+def head_crop(src):
     img = Image.open(src).convert("RGBA")
-    bbox = img.getchannel("A").point(lambda v: 255 if v >= 128 else 0).getbbox()
-    img = img.crop(bbox)
+    box = HEAD_OVERRIDES.get(src.stem) or find_head(img.getchannel("A"))
+    return img.crop(box)
+
+
+def cartoonize(src):
+    img = head_crop(src)
 
     scale = WORK_HEIGHT / img.height
     img = img.resize((round(img.width * scale), WORK_HEIGHT), Image.Resampling.LANCZOS)
@@ -141,8 +183,8 @@ def fit_height(img, h):
 
 
 def preview_sheet(pairs, path):
-    """Originals on top, cartoon versions below, on a neutral background."""
-    h = 400
+    """Original heads on top, cartoon versions below, on a neutral background."""
+    h = 300
     cols = []
     for orig, toon in pairs:
         o = fit_height(orig, h)
@@ -176,7 +218,7 @@ def main():
         toon = cartoonize(src)
         fit_height(toon, MASTER_HEIGHT).save(OUT_DIR / f"{src.stem}.png", optimize=True)
         fit_height(toon, SPRITE_HEIGHT).save(OUT_DIR / f"{src.stem}_sprite.png", optimize=True)
-        pairs.append((Image.open(src).convert("RGBA"), toon))
+        pairs.append((head_crop(src), toon))
         print("wrote", OUT_DIR.relative_to(ROOT) / f"{src.stem}.png")
 
     if args.preview:

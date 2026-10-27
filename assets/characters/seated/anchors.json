@@ -1,0 +1,35 @@
+{
+  "scene": {
+    "w": 960,
+    "h": 540
+  },
+  "layers": {
+    "bryan": {
+      "x": 170,
+      "y": 90
+    },
+    "table": {
+      "x": 370,
+      "y": 90
+    },
+    "jane": {
+      "x": 470,
+      "y": 90
+    }
+  },
+  "napkin": {
+    "w": 61,
+    "h": 39,
+    "start": "screen_left",
+    "spots": {
+      "screen_left": {
+        "x": 276,
+        "y": 402
+      },
+      "screen_right": {
+        "x": 324,
+        "y": 402
+      }
+    }
+  }
+}

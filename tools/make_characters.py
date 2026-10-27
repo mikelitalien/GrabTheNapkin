@@ -47,10 +47,10 @@ TABLE_W = 440              # table canvas width on the grid
 
 # Top-left corners in the 960 x 540 scene, for the _game images and table.png.
 SCENE = {"bryan": (170, 90), "table": (370, 90), "jane": (470, 90)}
-# Where the napkin can sit on Bryan, on the grid. He faces the viewer, so his
-# left leg is on the right of the picture. The napkin starts on his left leg.
-LEGS = {"left_leg": (368, 662), "right_leg": (272, 662)}
-NAPKIN_START = "left_leg"
+# Where the napkin can sit on Bryan, on the grid, named by the side of the
+# screen the leg is on. The napkin starts on the screen-left leg.
+LEGS = {"screen_left": (272, 662), "screen_right": (368, 662)}
+NAPKIN_START = "screen_left"
 
 WOOD = (156, 98, 52)
 WOOD_DARK = (112, 68, 36)

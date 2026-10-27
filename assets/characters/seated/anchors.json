@@ -20,14 +20,14 @@
   "napkin": {
     "w": 61,
     "h": 39,
-    "start": "left_leg",
+    "start": "screen_left",
     "spots": {
-      "left_leg": {
-        "x": 324,
+      "screen_left": {
+        "x": 276,
         "y": 402
       },
-      "right_leg": {
-        "x": 276,
+      "screen_right": {
+        "x": 324,
         "y": 402
       }
     }

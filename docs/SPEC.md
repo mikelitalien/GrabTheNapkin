@@ -137,9 +137,8 @@ These are the defaults I picked. Each is easy to change.
    there's one spot, Bryan's lap. Later, the napkin could also show up on
    Jane's lap or on the table, or a decoy (a fork, a phone) could appear that
    costs a point if clicked.
-4. **Leaderboard location.** Saved in the browser (`localStorage`), so each
-   computer has its own list. A shared leaderboard across devices would need
-   a small server or hosted database.
+4. **Leaderboard location.** Decided: saved in the browser (`localStorage`),
+   so each device has its own list. A shared online board could come later.
 5. **Names.** Free text up to 12 characters, or arcade-style 3 letters?
 6. **Speed-up.** The game gets faster over the round. Or should it stay the
    same speed, or offer difficulty levels?

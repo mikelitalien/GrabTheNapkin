@@ -116,6 +116,8 @@ still there after reloading the page.
 - Final scene art: background, table, stools and napkin in the cartoon style.
 - Napkin animations: slides or pops up onto the lap, and flies away when
   grabbed.
+- When you don't grab the napkin in time, Jane reaches over and snatches it
+  with a smug look.
 - Feedback: a "+1" pop when you score, and a small reaction from Bryan or Jane.
 - Sound effects (pop, grab, end buzzer) with a mute button.
 - Works well on a phone: touch, layout scaling, no page scrolling.

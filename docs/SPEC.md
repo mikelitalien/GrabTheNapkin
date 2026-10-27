@@ -139,7 +139,7 @@ These are the defaults I picked. Each is easy to change.
    costs a point if clicked.
 4. **Leaderboard location.** Decided: saved in the browser (`localStorage`),
    so each device has its own list. A shared online board could come later.
-5. **Names.** Free text up to 12 characters, or arcade-style 3 letters?
+5. **Names.** Decided: free text up to 12 characters.
 6. **Speed-up.** The game gets faster over the round. Or should it stay the
    same speed, or offer difficulty levels?
 7. **Bodies.** Generic cartoon bodies under the real heads (decided). Should

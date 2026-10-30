@@ -1,0 +1,6 @@
+# The game is plain static files served from the repo root (no build step).
+# Keep the Python art tools out of the upload so Vercel doesn't treat the
+# project as a Python app, and never upload the original photos.
+tools/
+docs/
+assets/characters/source/

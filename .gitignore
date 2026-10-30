@@ -14,3 +14,6 @@ desktop.ini
 __pycache__/
 *.pyc
 .venv/
+
+# Vercel build output (made by the buildCommand in vercel.json)
+public/
